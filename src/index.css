@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #020617;
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Custom Scrollbar ─────────────────────────────────── */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ─── React Flow Overrides ─────────────────────────────── */
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__edge {
+  cursor: pointer;
+}
+
+.react-flow__minimap {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls button {
+  border-radius: 0 !important;
+}
+
+.react-flow__controls button + button {
+  border-top: 1px solid #334155 !important;
+}
+
+/* ─── Node Shape Variants ──────────────────────────────── */
+.node-database .relative {
+  border-radius: 8px;
+  position: relative;
+}
+
+.node-database .relative::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 6px;
+  right: 6px;
+  height: 10px;
+  background: inherit;
+  border: inherit;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.node-cache .relative {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  padding: 16px 20px;
+}
+
+.node-queue .relative {
+  border-radius: 24px;
+}
+
+/* ─── Animation Utilities ──────────────────────────────── */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* ─── Edge flow animation ──────────────────────────────── */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: dash 1.5s linear infinite;
+}
+
+/* Focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
