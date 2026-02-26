@@ -10,6 +10,7 @@ export const useAppStore = create<AppState>()(
             connections: defaultConfig.connections,
             selectedNodeId: null,
             selectedEdgeId: null,
+            pinnedEdgeIds: [],
             showAddServiceModal: false,
             showAddConnectionModal: false,
 
@@ -18,6 +19,15 @@ export const useAppStore = create<AppState>()(
 
             setSelectedEdge: (id) =>
                 set({ selectedEdgeId: id, selectedNodeId: id ? null : get().selectedNodeId }),
+
+            togglePinEdge: (id) =>
+                set((state) => ({
+                    pinnedEdgeIds: state.pinnedEdgeIds.includes(id)
+                        ? state.pinnedEdgeIds.filter((eid) => eid !== id)
+                        : [...state.pinnedEdgeIds, id],
+                })),
+
+            unpinAllEdges: () => set({ pinnedEdgeIds: [] }),
 
             addService: (service: ServiceNode) =>
                 set((state) => ({ services: [...state.services, service] })),
@@ -91,6 +101,7 @@ export const useAppStore = create<AppState>()(
                     connections: defaultConfig.connections,
                     selectedNodeId: null,
                     selectedEdgeId: null,
+                    pinnedEdgeIds: [],
                 }),
 
             exportConfig: () => {
@@ -104,6 +115,7 @@ export const useAppStore = create<AppState>()(
                     connections: config.connections,
                     selectedNodeId: null,
                     selectedEdgeId: null,
+                    pinnedEdgeIds: [],
                 }),
         }),
         {

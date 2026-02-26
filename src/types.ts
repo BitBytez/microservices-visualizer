@@ -42,11 +42,14 @@ export interface AppState {
     connections: Connection[];
     selectedNodeId: string | null;
     selectedEdgeId: string | null;
+    pinnedEdgeIds: string[];
     showAddServiceModal: boolean;
     showAddConnectionModal: boolean;
 
     // Actions
     setSelectedNode: (id: string | null) => void;
+    togglePinEdge: (id: string) => void;
+    unpinAllEdges: () => void;
     setSelectedEdge: (id: string | null) => void;
     addService: (service: ServiceNode) => void;
     updateService: (id: string, updates: Partial<ServiceNode>) => void;

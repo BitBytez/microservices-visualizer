@@ -3,11 +3,12 @@ import { useAppStore } from '../store/store';
 
 export default function ConfigToolbar() {
     const {
+        pinnedEdgeIds,
         resetToDefaults,
         exportConfig,
         importConfig,
         setShowAddServiceModal,
-        setShowAddConnectionModal,
+        unpinAllEdges,
     } = useAppStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +84,21 @@ export default function ConfigToolbar() {
                     className="hidden"
                 />
             </label>
+
+            <div className="w-px h-5 bg-surface-700/50 mx-1" />
+
+            {pinnedEdgeIds.length > 0 && (
+                <button
+                    onClick={unpinAllEdges}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20 border border-emerald-400/20 transition-colors"
+                    title="Unpin all metrics from canvas"
+                >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Unpin All ({pinnedEdgeIds.length})
+                </button>
+            )}
 
             <div className="w-px h-5 bg-surface-700/50 mx-1" />
 

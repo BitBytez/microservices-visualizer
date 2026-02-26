@@ -1,19 +1,18 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ReactFlow,
     Background,
     Controls,
     MiniMap,
-    useNodesState,
-    useEdgesState,
     addEdge,
+    applyNodeChanges,
+    applyEdgeChanges,
     type Connection as RFConnection,
     type Node,
     type Edge,
     BackgroundVariant,
-    type OnNodesChange,
-    type OnEdgesChange,
-    useReactFlow,
+    type NodeChange,
+    type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -27,7 +26,6 @@ const edgeTypes = { dependencyEdge: DependencyEdgeComponent };
 
 // Layout helpers
 function getNodePosition(index: number, total: number) {
-    // Arrange in a grid-like pattern
     const cols = Math.ceil(Math.sqrt(total));
     const row = Math.floor(index / cols);
     const col = index % cols;
@@ -39,26 +37,37 @@ function getNodePosition(index: number, total: number) {
 }
 
 export default function GraphCanvas() {
-    const {
-        services,
-        connections,
-        selectedNodeId,
-        selectedEdgeId,
-        setSelectedNode,
-        setSelectedEdge,
-        addConnection,
-        addService,
-        setShowAddServiceModal,
-    } = useAppStore();
+    const services = useAppStore((s) => s.services);
+    const connections = useAppStore((s) => s.connections);
+    const selectedNodeId = useAppStore((s) => s.selectedNodeId);
+    const selectedEdgeId = useAppStore((s) => s.selectedEdgeId);
+    const pinnedEdgeIds = useAppStore((s) => s.pinnedEdgeIds);
+    const setSelectedNode = useAppStore((s) => s.setSelectedNode);
+    const setSelectedEdge = useAppStore((s) => s.setSelectedEdge);
+    const addConnection = useAppStore((s) => s.addConnection);
+    const setShowAddServiceModal = useAppStore((s) => s.setShowAddServiceModal);
 
-    const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    // ─── Position tracking via ref (survives re-renders without triggering them) ───
+    const positionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
-    const initialNodes: Node[] = useMemo(
+    // Initialize positions for new nodes
+    const getPosition = useCallback(
+        (id: string, index: number, total: number) => {
+            if (positionsRef.current[id]) return positionsRef.current[id];
+            const pos = getNodePosition(index, total);
+            positionsRef.current[id] = pos;
+            return pos;
+        },
+        []
+    );
+
+    // ─── Derive nodes purely from store + position ref (no side effects) ───
+    const nodes: Node[] = useMemo(
         () =>
             services.map((s, i) => ({
                 id: s.id,
-                type: 'serviceNode',
-                position: getNodePosition(i, services.length),
+                type: 'serviceNode' as const,
+                position: getPosition(s.id, i, services.length),
                 data: {
                     label: s.name,
                     serviceType: s.type,
@@ -67,68 +76,62 @@ export default function GraphCanvas() {
                     isSelected: s.id === selectedNodeId,
                 },
             })),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [services]
+        [services, selectedNodeId, getPosition]
     );
 
-    const initialEdges: Edge[] = useMemo(
+    // ─── Derive edges purely from store (no side effects) ───
+    const edges: Edge[] = useMemo(
         () =>
             connections.map((c) => ({
                 id: c.id,
                 source: c.source,
                 target: c.target,
-                type: 'dependencyEdge',
+                type: 'dependencyEdge' as const,
                 data: {
                     dashboardCount: c.dashboards.length,
+                    dashboards: c.dashboards,
                     label: c.label,
                     isSelected: c.id === selectedEdgeId,
+                    isPinned: pinnedEdgeIds.includes(c.id),
+                    connectionId: c.id,
                 },
             })),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [connections]
+        [connections, selectedEdgeId, pinnedEdgeIds]
     );
 
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    // ─── We need React Flow to actually move nodes, so use applyNodeChanges ───
+    // Use a state-based approach but only for position tracking
+    const [rfNodes, setRfNodes] = useState<Node[]>(nodes);
+    const [rfEdges, setRfEdges] = useState<Edge[]>(edges);
 
-    // Keep nodes/edges in sync with store
-    useMemo(() => {
-        setNodes(
-            services.map((s, i) => {
-                const existing = nodes.find((n) => n.id === s.id);
-                return {
-                    id: s.id,
-                    type: 'serviceNode',
-                    position: existing?.position ?? getNodePosition(i, services.length),
-                    data: {
-                        label: s.name,
-                        serviceType: s.type,
-                        color: s.color,
-                        description: s.description,
-                        isSelected: s.id === selectedNodeId,
-                    },
-                };
-            })
-        );
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [services, selectedNodeId, setNodes]);
+    // Sync derived data → local RF state (only when store data changes)
+    useEffect(() => {
+        setRfNodes(nodes);
+    }, [nodes]);
 
-    useMemo(() => {
-        setEdges(
-            connections.map((c) => ({
-                id: c.id,
-                source: c.source,
-                target: c.target,
-                type: 'dependencyEdge',
-                data: {
-                    dashboardCount: c.dashboards.length,
-                    label: c.label,
-                    isSelected: c.id === selectedEdgeId,
-                },
-            }))
-        );
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [connections, selectedEdgeId, setEdges]);
+    useEffect(() => {
+        setRfEdges(edges);
+    }, [edges]);
+
+    const handleNodesChange = useCallback(
+        (changes: NodeChange[]) => {
+            // Update positions ref
+            for (const change of changes) {
+                if (change.type === 'position' && change.position) {
+                    positionsRef.current[change.id] = change.position;
+                }
+            }
+            setRfNodes((nds) => applyNodeChanges(changes, nds));
+        },
+        []
+    );
+
+    const handleEdgesChange = useCallback(
+        (changes: EdgeChange[]) => {
+            setRfEdges((eds) => applyEdgeChanges(changes, eds));
+        },
+        []
+    );
 
     const onConnect = useCallback(
         (params: RFConnection) => {
@@ -139,9 +142,14 @@ export default function GraphCanvas() {
                 dashboards: [],
             };
             addConnection(newConn);
-            setEdges((eds) => addEdge({ ...params, type: 'dependencyEdge', id: newConn.id, data: { dashboardCount: 0 } }, eds));
+            setRfEdges((eds) =>
+                addEdge(
+                    { ...params, type: 'dependencyEdge', id: newConn.id, data: { dashboardCount: 0 } },
+                    eds
+                )
+            );
         },
-        [addConnection, setEdges]
+        [addConnection]
     );
 
     const onNodeClick = useCallback(
@@ -163,35 +171,15 @@ export default function GraphCanvas() {
         setSelectedEdge(null);
     }, [setSelectedNode, setSelectedEdge]);
 
-    const { screenToFlowPosition } = useReactFlow();
-
-    const onDoubleClick = useCallback(
-        (event: React.MouseEvent) => {
-            // Double-click to add a new node
-            setShowAddServiceModal(true);
-        },
-        [setShowAddServiceModal]
-    );
-
-    const handleNodesChange: OnNodesChange = useCallback(
-        (changes) => {
-            onNodesChange(changes);
-        },
-        [onNodesChange]
-    );
-
-    const handleEdgesChange: OnEdgesChange = useCallback(
-        (changes) => {
-            onEdgesChange(changes);
-        },
-        [onEdgesChange]
-    );
+    const onDoubleClick = useCallback(() => {
+        setShowAddServiceModal(true);
+    }, [setShowAddServiceModal]);
 
     return (
-        <div ref={reactFlowWrapper} className="w-full h-full">
+        <div className="w-full h-full">
             <ReactFlow
-                nodes={nodes}
-                edges={edges}
+                nodes={rfNodes}
+                edges={rfEdges}
                 onNodesChange={handleNodesChange}
                 onEdgesChange={handleEdgesChange}
                 onConnect={onConnect}
