@@ -8,30 +8,7 @@ import {
 } from '@xyflow/react';
 import { useAppStore } from '../../store/store';
 import type { Dashboard } from '../../types';
-
-// ─── localStorage helpers for edge label offset persistence ───
-const EDGE_OFFSETS_STORAGE_KEY = 'microservice-graph-edge-offsets';
-
-function loadEdgeOffsets(): Record<string, { x: number; y: number }> {
-    try {
-        const raw = localStorage.getItem(EDGE_OFFSETS_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-    } catch {
-        return {};
-    }
-}
-
-function saveEdgeOffsets(offsets: Record<string, { x: number; y: number }>) {
-    try {
-        localStorage.setItem(EDGE_OFFSETS_STORAGE_KEY, JSON.stringify(offsets));
-    } catch {
-        // silently ignore
-    }
-}
-
-export function clearSavedEdgeOffsets() {
-    localStorage.removeItem(EDGE_OFFSETS_STORAGE_KEY);
-}
+import { setEdgeOffset, getEdgeOffsetsMap } from '../GraphCanvas';
 
 interface DependencyEdgeData {
     dashboardCount: number;
@@ -70,7 +47,7 @@ function DependencyEdgeComponent({
 
     // ─── Drag offset for the edge label (in flow coordinates) ───
     const [offset, setOffset] = useState(() => {
-        const saved = loadEdgeOffsets();
+        const saved = getEdgeOffsetsMap();
         return saved[id] ?? { x: 0, y: 0 };
     });
     const isDragging = useRef(false);
@@ -89,22 +66,19 @@ function DependencyEdgeComponent({
     const onPointerMove = useCallback((e: React.PointerEvent) => {
         if (!isDragging.current) return;
         e.stopPropagation();
-        // Divide by zoom to convert screen pixels → flow coordinates
-        setOffset({
+        const newOffset = {
             x: offsetStart.current.x + (e.clientX - dragStart.current.x) / zoom,
             y: offsetStart.current.y + (e.clientY - dragStart.current.y) / zoom,
-        });
-    }, [zoom]);
+        };
+        setOffset(newOffset);
+        setEdgeOffset(id, newOffset);
+    }, [zoom, id]);
 
     const onPointerUp = useCallback((e: React.PointerEvent) => {
         if (!isDragging.current) return;
         isDragging.current = false;
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-        // Persist edge label offset to localStorage
-        const allOffsets = loadEdgeOffsets();
-        allOffsets[id] = { ...offset };
-        saveEdgeOffsets(allOffsets);
-    }, [id, offset]);
+    }, []);
 
     // ─── Compute default bezier path ───
     const [defaultPath, defaultLabelX, defaultLabelY] = getBezierPath({

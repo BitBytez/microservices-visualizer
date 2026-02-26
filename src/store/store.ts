@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AppState, ServiceNode, Connection, Dashboard } from '../types';
+import type { AppState, ServiceNode, Connection, Dashboard, SavedDiagram } from '../types';
 import { defaultConfig } from '../data/mockData';
-import { clearSavedPositions } from '../components/GraphCanvas';
-import { clearSavedEdgeOffsets } from '../components/edges/DependencyEdge';
+import * as db from '../storage/diagramStorage';
 
 export const useAppStore = create<AppState>()(
     persist(
@@ -16,6 +15,10 @@ export const useAppStore = create<AppState>()(
             animationsEnabled: true,
             showAddServiceModal: false,
             showAddConnectionModal: false,
+
+            // Multi-diagram state
+            savedDiagrams: [],
+            activeDiagramId: null,
 
             setSelectedNode: (id) =>
                 set({ selectedNodeId: id, selectedEdgeId: id ? null : get().selectedEdgeId }),
@@ -102,14 +105,13 @@ export const useAppStore = create<AppState>()(
             setShowAddConnectionModal: (show) => set({ showAddConnectionModal: show }),
 
             resetToDefaults: () => {
-                clearSavedPositions();
-                clearSavedEdgeOffsets();
                 set({
                     services: defaultConfig.services,
                     connections: defaultConfig.connections,
                     selectedNodeId: null,
                     selectedEdgeId: null,
                     pinnedEdgeIds: [],
+                    activeDiagramId: null,
                 });
             },
 
@@ -126,6 +128,71 @@ export const useAppStore = create<AppState>()(
                     selectedEdgeId: null,
                     pinnedEdgeIds: [],
                 }),
+
+            // ─── Diagram management ───────────────────────────────
+            refreshDiagramList: async () => {
+                const diagrams = await db.getAllDiagrams();
+                set({ savedDiagrams: diagrams });
+            },
+
+            saveDiagram: async (name, nodePositions, edgeOffsets) => {
+                const { services, connections, activeDiagramId, savedDiagrams } = get();
+                const now = Date.now();
+
+                // If we have an active diagram, update it
+                const existingDiagram = activeDiagramId
+                    ? savedDiagrams.find((d) => d.id === activeDiagramId)
+                    : null;
+
+                const diagram: SavedDiagram = {
+                    id: existingDiagram?.id ?? `diagram-${now}`,
+                    name,
+                    services,
+                    connections,
+                    nodePositions,
+                    edgeOffsets,
+                    createdAt: existingDiagram?.createdAt ?? now,
+                    updatedAt: now,
+                };
+
+                await db.putDiagram(diagram);
+                const diagrams = await db.getAllDiagrams();
+                set({ savedDiagrams: diagrams, activeDiagramId: diagram.id });
+            },
+
+            loadDiagram: async (id) => {
+                const diagram = await db.getDiagram(id);
+                if (!diagram) return;
+                set({
+                    services: diagram.services,
+                    connections: diagram.connections,
+                    activeDiagramId: diagram.id,
+                    selectedNodeId: null,
+                    selectedEdgeId: null,
+                    pinnedEdgeIds: [],
+                });
+                // Positions/offsets are loaded by the components via store
+            },
+
+            deleteDiagram: async (id) => {
+                await db.deleteDiagram(id);
+                const diagrams = await db.getAllDiagrams();
+                const { activeDiagramId } = get();
+                set({
+                    savedDiagrams: diagrams,
+                    activeDiagramId: activeDiagramId === id ? null : activeDiagramId,
+                });
+            },
+
+            renameDiagram: async (id, name) => {
+                const diagram = await db.getDiagram(id);
+                if (!diagram) return;
+                diagram.name = name;
+                diagram.updatedAt = Date.now();
+                await db.putDiagram(diagram);
+                const diagrams = await db.getAllDiagrams();
+                set({ savedDiagrams: diagrams });
+            },
         }),
         {
             name: 'microservice-graph-storage',
@@ -133,6 +200,7 @@ export const useAppStore = create<AppState>()(
                 services: state.services,
                 connections: state.connections,
                 animationsEnabled: state.animationsEnabled,
+                activeDiagramId: state.activeDiagramId,
             }),
         }
     )

@@ -36,6 +36,18 @@ export interface GraphConfig {
     connections: Connection[];
 }
 
+// ─── Saved Diagram (persisted to IndexedDB) ─────────────────────
+export interface SavedDiagram {
+    id: string;
+    name: string;
+    services: ServiceNode[];
+    connections: Connection[];
+    nodePositions: Record<string, { x: number; y: number }>;
+    edgeOffsets: Record<string, { x: number; y: number }>;
+    createdAt: number;
+    updatedAt: number;
+}
+
 // ─── App State ──────────────────────────────────────────────────
 export interface AppState {
     services: ServiceNode[];
@@ -46,6 +58,10 @@ export interface AppState {
     animationsEnabled: boolean;
     showAddServiceModal: boolean;
     showAddConnectionModal: boolean;
+
+    // Multi-diagram state
+    savedDiagrams: SavedDiagram[];
+    activeDiagramId: string | null;
 
     // Actions
     setSelectedNode: (id: string | null) => void;
@@ -66,4 +82,11 @@ export interface AppState {
     resetToDefaults: () => void;
     exportConfig: () => GraphConfig;
     importConfig: (config: GraphConfig) => void;
+
+    // Diagram management actions
+    refreshDiagramList: () => Promise<void>;
+    saveDiagram: (name: string, nodePositions: Record<string, { x: number; y: number }>, edgeOffsets: Record<string, { x: number; y: number }>) => Promise<void>;
+    loadDiagram: (id: string) => Promise<void>;
+    deleteDiagram: (id: string) => Promise<void>;
+    renameDiagram: (id: string, name: string) => Promise<void>;
 }

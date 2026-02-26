@@ -24,28 +24,33 @@ import type { Connection } from '../types';
 const nodeTypes = { serviceNode: ServiceNodeComponent };
 const edgeTypes = { dependencyEdge: DependencyEdgeComponent };
 
-// ─── localStorage helpers for position persistence ───
-const POSITIONS_STORAGE_KEY = 'microservice-graph-positions';
+// ─── Global accessors for positions (used by toolbar when saving) ───
+let _getNodePositions: () => Record<string, { x: number; y: number }> = () => ({});
+let _getEdgeOffsets: () => Record<string, { x: number; y: number }> = () => ({});
 
-function loadPositions(): Record<string, { x: number; y: number }> {
-    try {
-        const raw = localStorage.getItem(POSITIONS_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-    } catch {
-        return {};
-    }
+export function getNodePositions() {
+    return _getNodePositions();
+}
+export function getEdgeOffsets() {
+    return _getEdgeOffsets();
 }
 
-function savePositions(positions: Record<string, { x: number; y: number }>) {
-    try {
-        localStorage.setItem(POSITIONS_STORAGE_KEY, JSON.stringify(positions));
-    } catch {
-        // localStorage full or unavailable — silently ignore
+// ─── Shared edge offset state (written by DependencyEdge, read by toolbar) ───
+const _edgeOffsetsMap: Record<string, { x: number; y: number }> = {};
+export function setEdgeOffset(edgeId: string, offset: { x: number; y: number }) {
+    _edgeOffsetsMap[edgeId] = offset;
+}
+export function getEdgeOffsetsMap() {
+    return { ..._edgeOffsetsMap };
+}
+export function clearEdgeOffsetsMap() {
+    for (const key of Object.keys(_edgeOffsetsMap)) {
+        delete _edgeOffsetsMap[key];
     }
 }
-
-export function clearSavedPositions() {
-    localStorage.removeItem(POSITIONS_STORAGE_KEY);
+export function seedEdgeOffsetsMap(offsets: Record<string, { x: number; y: number }>) {
+    clearEdgeOffsetsMap();
+    Object.assign(_edgeOffsetsMap, offsets);
 }
 
 // Layout helpers
@@ -71,11 +76,51 @@ export default function GraphCanvas() {
     const setSelectedEdge = useAppStore((s) => s.setSelectedEdge);
     const addConnection = useAppStore((s) => s.addConnection);
     const setShowAddServiceModal = useAppStore((s) => s.setShowAddServiceModal);
+    const activeDiagramId = useAppStore((s) => s.activeDiagramId);
 
-    // ─── Position tracking via ref (survives re-renders without triggering them) ───
-    // Seed with any positions cached in localStorage
-    const positionsRef = useRef<Record<string, { x: number; y: number }>>(loadPositions());
-    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // ─── Position tracking via ref ───
+    const positionsRef = useRef<Record<string, { x: number; y: number }>>({});
+    // Version counter to force nodes memo to re-derive after async position loads
+    const [positionVersion, setPositionVersion] = useState(0);
+    // Ref to rfNodes state so we can read actual rendered positions for saving
+    const rfNodesRef = useRef<Node[]>([]);
+
+    // Expose positions globally for toolbar save — read from actual React Flow nodes
+    useEffect(() => {
+        _getNodePositions = () => {
+            const positions: Record<string, { x: number; y: number }> = {};
+            for (const node of rfNodesRef.current) {
+                positions[node.id] = { x: node.position.x, y: node.position.y };
+            }
+            return positions;
+        };
+        _getEdgeOffsets = getEdgeOffsetsMap;
+        return () => {
+            _getNodePositions = () => ({});
+            _getEdgeOffsets = () => ({});
+        };
+    }, []);
+
+    // Seed positions when active diagram changes — load directly from IndexedDB
+    // to avoid the race condition where savedDiagrams hasn't been populated yet
+    useEffect(() => {
+        if (activeDiagramId) {
+            import('../storage/diagramStorage').then(({ getDiagram }) => {
+                getDiagram(activeDiagramId).then((diagram) => {
+                    if (diagram) {
+                        positionsRef.current = { ...diagram.nodePositions };
+                        seedEdgeOffsetsMap(diagram.edgeOffsets);
+                        setPositionVersion((v) => v + 1); // force re-render
+                    }
+                });
+            });
+        } else {
+            // New/default diagram — reset to auto-layout
+            positionsRef.current = {};
+            clearEdgeOffsetsMap();
+            setPositionVersion((v) => v + 1);
+        }
+    }, [activeDiagramId]);
 
     // Initialize positions for new nodes
     const getPosition = useCallback(
@@ -88,7 +133,7 @@ export default function GraphCanvas() {
         []
     );
 
-    // ─── Derive nodes purely from store + position ref (no side effects) ───
+    // ─── Derive nodes from store + position ref (positionVersion forces re-derive) ───
     const nodes: Node[] = useMemo(
         () =>
             services.map((s, i) => ({
@@ -103,10 +148,11 @@ export default function GraphCanvas() {
                     isSelected: s.id === selectedNodeId,
                 },
             })),
-        [services, selectedNodeId, getPosition]
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [services, selectedNodeId, getPosition, positionVersion]
     );
 
-    // ─── Derive edges purely from store (no side effects) ───
+    // ─── Derive edges purely from store ───
     const edges: Edge[] = useMemo(
         () =>
             connections.map((c) => ({
@@ -127,12 +173,14 @@ export default function GraphCanvas() {
         [connections, selectedEdgeId, pinnedEdgeIds, animationsEnabled]
     );
 
-    // ─── We need React Flow to actually move nodes, so use applyNodeChanges ───
-    // Use a state-based approach but only for position tracking
     const [rfNodes, setRfNodes] = useState<Node[]>(nodes);
     const [rfEdges, setRfEdges] = useState<Edge[]>(edges);
 
-    // Sync derived data → local RF state (only when store data changes)
+    // Keep rfNodesRef in sync for the global position getter
+    useEffect(() => {
+        rfNodesRef.current = rfNodes;
+    }, [rfNodes]);
+
     useEffect(() => {
         setRfNodes(nodes);
     }, [nodes]);
@@ -143,22 +191,16 @@ export default function GraphCanvas() {
 
     const handleNodesChange = useCallback(
         (changes: NodeChange[]) => {
-            let positionChanged = false;
-            // Update positions ref
             for (const change of changes) {
                 if (change.type === 'position' && change.position) {
                     positionsRef.current[change.id] = change.position;
-                    positionChanged = true;
                 }
             }
-            // Debounced save to localStorage
-            if (positionChanged) {
-                if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-                saveTimerRef.current = setTimeout(() => {
-                    savePositions(positionsRef.current);
-                }, 300);
-            }
-            setRfNodes((nds) => applyNodeChanges(changes, nds));
+            setRfNodes((nds) => {
+                const updated = applyNodeChanges(changes, nds);
+                rfNodesRef.current = updated; // sync immediately for save
+                return updated;
+            });
         },
         []
     );
