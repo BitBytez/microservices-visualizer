@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# Microservices Visualizer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A dynamic, interactive visualization tool for mapping microservice architectures and monitoring their dependencies in real-time.
 
-Currently, two official plugins are available:
+*Vibe-coded by Antigravity.*
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🎯 What it does
+Microservices Visualizer provides a spatial, node-based canvas (powered by React Flow) that lets you map out your system architecture. Instead of digging through endless lists or monolithic dashboards, you can clearly see the topology of your Gateways, Services, Databases, Caches, and Message Queues.
 
-## React Compiler
+Critically, it treats the **connections** between services as first-class citizens. You can embed Grafana dashboards (or any iframe-able metric) directly onto the edges connecting your services.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠 Problems it Solves
+- **Context Switching**: Developers and SREs often have to constantly switch between static architecture diagrams and separate monitoring dashboards. This UI brings the metrics *to* the architecture map.
+- **Dependency Blindspots**: When an incident occurs, it's hard to visualize *how* a failing service impacts downstream dependencies. By visualizing the graph, the blast radius becomes intuitively obvious.
+- **Granular Monitoring**: Monolithic dashboards often fail to highlight issues on specific communication edges (e.g., tracking latency *specifically* between the API Gateway and the Auth Service). By pinning metrics directly to the dependency edges, you get granular, connection-specific insights.
+- **Side-by-side Comparison**: The app allows you to pin multiple metric panels directly on the canvas, letting you monitor the health of entirely different service branches simultaneously.
 
-## Expanding the ESLint configuration
+## ✨ Key Features
+- **Interactive Graph**: Drag, pan, and zoom around your architecture. Nodes and connection lines react smoothly to your layout changes.
+- **Inline Metrics**: Pin Grafana metric panels directly onto the canvas to watch metrics precisely where the data flows.
+- **Draggable Edge Labels**: Customize your layout by dragging connection labels and their associated metrics anywhere on the screen; the lines will bend to follow them.
+- **State Persistence & Export**: Layouts and configurations are saved to your browser's local storage automatically. You can also export/import your entire architecture as JSON.
+- **Customizable Aesthetics**: Dark-mode native, with smooth flow animations that can be toggled on or off to reduce distraction.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🚀 Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Prerequisites
+- Node.js
+- npm or yarn
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Installation
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open `http://localhost:5173` in your browser.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🤖 Credits
+This application was entirely vibe-coded. Built using React, TypeScript, Tailwind CSS, Zustand, and React Flow.
