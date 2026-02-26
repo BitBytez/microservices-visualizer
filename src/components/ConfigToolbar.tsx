@@ -4,11 +4,13 @@ import { useAppStore } from '../store/store';
 export default function ConfigToolbar() {
     const {
         pinnedEdgeIds,
+        animationsEnabled,
         resetToDefaults,
         exportConfig,
         importConfig,
         setShowAddServiceModal,
         unpinAllEdges,
+        toggleAnimations,
     } = useAppStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +48,27 @@ export default function ConfigToolbar() {
             <div className="flex items-center gap-1 mr-auto">
                 <span className="text-sm font-semibold text-surface-300">◈ Microservice Graph</span>
             </div>
+
+            {/* Animation toggle */}
+            <button
+                onClick={toggleAnimations}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${animationsEnabled
+                        ? 'text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border-amber-400/20'
+                        : 'text-surface-400 bg-surface-800/50 hover:bg-surface-700/50 border-surface-600/30'
+                    }`}
+                title={animationsEnabled ? 'Disable animations' : 'Enable animations'}
+            >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    {animationsEnabled ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
+                    )}
+                </svg>
+                {animationsEnabled ? 'Animations On' : 'Animations Off'}
+            </button>
+
+            <div className="w-px h-5 bg-surface-700/50 mx-1" />
 
             <button
                 onClick={() => setShowAddServiceModal(true)}

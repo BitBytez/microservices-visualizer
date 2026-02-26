@@ -42,6 +42,7 @@ export default function GraphCanvas() {
     const selectedNodeId = useAppStore((s) => s.selectedNodeId);
     const selectedEdgeId = useAppStore((s) => s.selectedEdgeId);
     const pinnedEdgeIds = useAppStore((s) => s.pinnedEdgeIds);
+    const animationsEnabled = useAppStore((s) => s.animationsEnabled);
     const setSelectedNode = useAppStore((s) => s.setSelectedNode);
     const setSelectedEdge = useAppStore((s) => s.setSelectedEdge);
     const addConnection = useAppStore((s) => s.addConnection);
@@ -94,9 +95,10 @@ export default function GraphCanvas() {
                     isSelected: c.id === selectedEdgeId,
                     isPinned: pinnedEdgeIds.includes(c.id),
                     connectionId: c.id,
+                    animationsEnabled,
                 },
             })),
-        [connections, selectedEdgeId, pinnedEdgeIds]
+        [connections, selectedEdgeId, pinnedEdgeIds, animationsEnabled]
     );
 
     // ─── We need React Flow to actually move nodes, so use applyNodeChanges ───
@@ -197,7 +199,7 @@ export default function GraphCanvas() {
                     type: 'dependencyEdge',
                 }}
                 proOptions={{ hideAttribution: true }}
-                className="bg-surface-950"
+                className={`bg-surface-950${animationsEnabled ? '' : ' no-animate'}`}
             >
                 <Background
                     variant={BackgroundVariant.Dots}

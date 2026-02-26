@@ -16,6 +16,7 @@ interface DependencyEdgeData {
     isSelected?: boolean;
     isPinned?: boolean;
     connectionId: string;
+    animationsEnabled?: boolean;
     [key: string]: unknown;
 }
 
@@ -37,6 +38,7 @@ function DependencyEdgeComponent({
     const isSelected = edgeData?.isSelected ?? false;
     const isPinned = edgeData?.isPinned ?? false;
     const connectionId = edgeData?.connectionId;
+    const animationsEnabled = edgeData?.animationsEnabled ?? true;
 
     const togglePinEdge = useAppStore((s) => s.togglePinEdge);
     const [expandedDashIds, setExpandedDashIds] = useState<Set<string>>(new Set());
@@ -142,10 +144,12 @@ function DependencyEdgeComponent({
                     transition: 'stroke 0.2s, stroke-width 0.2s',
                 }}
             />
-            {/* Animated flow dots */}
-            <circle r="3" fill={isPinned ? '#34d399' : isSelected ? '#818cf8' : '#64748b'}>
-                <animateMotion dur="3s" repeatCount="indefinite" path={edgePath} />
-            </circle>
+            {/* Animated flow dots (only when animations enabled) */}
+            {animationsEnabled && (
+                <circle r="3" fill={isPinned ? '#34d399' : isSelected ? '#818cf8' : '#64748b'}>
+                    <animateMotion dur="3s" repeatCount="indefinite" path={edgePath} />
+                </circle>
+            )}
 
             <EdgeLabelRenderer>
                 {/* ─── Edge label badge (draggable — moves the edge line too) ─── */}

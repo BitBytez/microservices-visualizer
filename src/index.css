@@ -71,7 +71,7 @@ body {
   border-radius: 0 !important;
 }
 
-.react-flow__controls button + button {
+.react-flow__controls button+button {
   border-top: 1px solid #334155 !important;
 }
 
@@ -105,8 +105,15 @@ body {
 
 /* ─── Animation Utilities ──────────────────────────────── */
 @keyframes gradient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .animate-gradient {
@@ -124,6 +131,10 @@ body {
 .react-flow__edge-path {
   stroke-dasharray: 5;
   animation: dash 1.5s linear infinite;
+}
+
+.no-animate .react-flow__edge-path {
+  animation: none;
 }
 
 /* Focus ring for accessibility */

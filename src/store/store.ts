@@ -11,6 +11,7 @@ export const useAppStore = create<AppState>()(
             selectedNodeId: null,
             selectedEdgeId: null,
             pinnedEdgeIds: [],
+            animationsEnabled: true,
             showAddServiceModal: false,
             showAddConnectionModal: false,
 
@@ -28,6 +29,9 @@ export const useAppStore = create<AppState>()(
                 })),
 
             unpinAllEdges: () => set({ pinnedEdgeIds: [] }),
+
+            toggleAnimations: () =>
+                set((state) => ({ animationsEnabled: !state.animationsEnabled })),
 
             addService: (service: ServiceNode) =>
                 set((state) => ({ services: [...state.services, service] })),
@@ -123,6 +127,7 @@ export const useAppStore = create<AppState>()(
             partialize: (state) => ({
                 services: state.services,
                 connections: state.connections,
+                animationsEnabled: state.animationsEnabled,
             }),
         }
     )

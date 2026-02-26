@@ -43,6 +43,7 @@ export interface AppState {
     selectedNodeId: string | null;
     selectedEdgeId: string | null;
     pinnedEdgeIds: string[];
+    animationsEnabled: boolean;
     showAddServiceModal: boolean;
     showAddConnectionModal: boolean;
 
@@ -51,6 +52,7 @@ export interface AppState {
     togglePinEdge: (id: string) => void;
     unpinAllEdges: () => void;
     setSelectedEdge: (id: string | null) => void;
+    toggleAnimations: () => void;
     addService: (service: ServiceNode) => void;
     updateService: (id: string, updates: Partial<ServiceNode>) => void;
     removeService: (id: string) => void;
