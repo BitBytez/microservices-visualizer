@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AppState, ServiceNode, Connection, Dashboard } from '../types';
 import { defaultConfig } from '../data/mockData';
+import { clearSavedPositions } from '../components/GraphCanvas';
+import { clearSavedEdgeOffsets } from '../components/edges/DependencyEdge';
 
 export const useAppStore = create<AppState>()(
     persist(
@@ -99,14 +101,17 @@ export const useAppStore = create<AppState>()(
             setShowAddServiceModal: (show) => set({ showAddServiceModal: show }),
             setShowAddConnectionModal: (show) => set({ showAddConnectionModal: show }),
 
-            resetToDefaults: () =>
+            resetToDefaults: () => {
+                clearSavedPositions();
+                clearSavedEdgeOffsets();
                 set({
                     services: defaultConfig.services,
                     connections: defaultConfig.connections,
                     selectedNodeId: null,
                     selectedEdgeId: null,
                     pinnedEdgeIds: [],
-                }),
+                });
+            },
 
             exportConfig: () => {
                 const { services, connections } = get();

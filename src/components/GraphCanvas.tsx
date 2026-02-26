@@ -24,6 +24,30 @@ import type { Connection } from '../types';
 const nodeTypes = { serviceNode: ServiceNodeComponent };
 const edgeTypes = { dependencyEdge: DependencyEdgeComponent };
 
+// ─── localStorage helpers for position persistence ───
+const POSITIONS_STORAGE_KEY = 'microservice-graph-positions';
+
+function loadPositions(): Record<string, { x: number; y: number }> {
+    try {
+        const raw = localStorage.getItem(POSITIONS_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
+function savePositions(positions: Record<string, { x: number; y: number }>) {
+    try {
+        localStorage.setItem(POSITIONS_STORAGE_KEY, JSON.stringify(positions));
+    } catch {
+        // localStorage full or unavailable — silently ignore
+    }
+}
+
+export function clearSavedPositions() {
+    localStorage.removeItem(POSITIONS_STORAGE_KEY);
+}
+
 // Layout helpers
 function getNodePosition(index: number, total: number) {
     const cols = Math.ceil(Math.sqrt(total));
@@ -49,7 +73,9 @@ export default function GraphCanvas() {
     const setShowAddServiceModal = useAppStore((s) => s.setShowAddServiceModal);
 
     // ─── Position tracking via ref (survives re-renders without triggering them) ───
-    const positionsRef = useRef<Record<string, { x: number; y: number }>>({});
+    // Seed with any positions cached in localStorage
+    const positionsRef = useRef<Record<string, { x: number; y: number }>>(loadPositions());
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Initialize positions for new nodes
     const getPosition = useCallback(
@@ -117,11 +143,20 @@ export default function GraphCanvas() {
 
     const handleNodesChange = useCallback(
         (changes: NodeChange[]) => {
+            let positionChanged = false;
             // Update positions ref
             for (const change of changes) {
                 if (change.type === 'position' && change.position) {
                     positionsRef.current[change.id] = change.position;
+                    positionChanged = true;
                 }
+            }
+            // Debounced save to localStorage
+            if (positionChanged) {
+                if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+                saveTimerRef.current = setTimeout(() => {
+                    savePositions(positionsRef.current);
+                }, 300);
             }
             setRfNodes((nds) => applyNodeChanges(changes, nds));
         },
